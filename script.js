@@ -50,25 +50,26 @@
     const css = `
       body {
         font-family: Quicksand-Bold, sans-serif;
-        margin: 20px;
         background: #fff;
       }
   
       .carousel-container {
-        margin: 0 72px;
+        margin: 24px 0;
         padding: 0px;
         position: relative;
+        width: 100%;
       }
   
       .carousel-title {
-        font-size: 24px;
+        font-size: 28px;
         font-weight: 700;
         margin-bottom: 20px;
-        padding: 32px;
+        padding: 32px 64px;
         background: rgb(254, 246, 235);
         border-top-left-radius: 36px;
         border-top-right-radius: 36px;
         color: rgb(242, 142, 0);
+        width: 100%;
       }
   
       .carousel-controls {
@@ -124,10 +125,9 @@
       }
   
       .product-card {
-        flex: 0 0 calc(22% - 16px);
-        min-height: 100%;
+        min-height: 90%;
         background: #fff;
-        border: 1px solid #ddd;
+        border: 1px solid rgb(237, 237, 237);
         border-radius: 8px;
         padding: 16px;
         text-align: start;
@@ -168,7 +168,7 @@
   
       .product-card h3 b {
         font-size: 13px;
-        font-weight: 800;
+        font-weight: 900;
       }
   
       .product-card .price-container {
@@ -176,7 +176,7 @@
         flex-direction: column;
         justify-content: center;
         align-items: start;
-        gap: 36px;
+        gap: 4px;
         padding: 8px 0;
       }
 
@@ -232,7 +232,7 @@
         position: absolute;
         top: 16px;
         right: 16px;
-        padding: 14px 16px 12px 16px;
+        padding: 16px;
         cursor: pointer;
         background: #fff;
         border: 1px solid #fff;
@@ -277,20 +277,28 @@
         border: 1px solid rgb(242, 142, 0);
       }
   
-      @media (max-width: 768px) {
-        .product-card {
-          flex: 0 0 calc(60% - 16px);
-        }
-      }
-  
       @media (max-width: 480px) {
         .product-card {
-          flex: 0 0 100%;
+          flex: 0 0 calc(50% - 16px);
+        }
+      }
+
+      @media (min-width: 481px) and (max-width: 768px) {
+        .product-card {
+          flex: 0 0 calc(33.33% - 16px);
+        }
+      }
+
+      @media (min-width: 769px) {
+        .product-card {
+          flex: 0 0 calc(25% - 16px);
         }
       }
     `;
   
-    $("<style>").html(css).appendTo("head");
+    const style = document.createElement("style");
+    style.innerHTML = css;
+    document.head.appendChild(style);
   };
 
   const fetchProducts = async () => {
@@ -310,8 +318,8 @@
   };
 
   const renderProducts = (products) => {
-    const carouselTrack = $(".carousel-track");
-    carouselTrack.empty();
+    const carouselTrack = document.querySelector(".carousel-track");
+    carouselTrack.innerHTML = "";
   
     const favorites = JSON.parse(localStorage.getItem(favoriteKey)) || [];
   
@@ -349,61 +357,73 @@
           </div>
         </div>
       `;
-      carouselTrack.append(productCard);
+      
+      carouselTrack.insertAdjacentHTML("beforeend", productCard);
     });
   
     let currentIndex = 0;
     const totalProducts = products.length;
   
-    $(".carousel-button.next").click(() => {
-      if (currentIndex < totalProducts - 4) {
+    const getVisibleProducts = () => {
+      if (window.innerWidth <= 480) return 2;
+      if (window.innerWidth <= 768) return 3;
+      return 4;
+    };
+  
+    document.querySelector(".carousel-button.next").addEventListener("click", () => {
+      const visibleProducts = getVisibleProducts();
+      if (currentIndex < totalProducts - visibleProducts) {
         currentIndex += 1;
-        carouselTrack.css("transform", `translateX(-${currentIndex * 25}%)`);
+        carouselTrack.style.transform = `translateX(-${currentIndex * (100 / visibleProducts)}%)`;
       }
     });
   
-    $(".carousel-button.prev").click(() => {
+    document.querySelector(".carousel-button.prev").addEventListener("click", () => {
+      const visibleProducts = getVisibleProducts();
       if (currentIndex > 0) {
         currentIndex -= 1;
-        carouselTrack.css("transform", `translateX(-${currentIndex * 25}%)`);
+        carouselTrack.style.transform = `translateX(-${currentIndex * (100 / visibleProducts)}%)`;
       }
     });
   };
 
   const setEvents = () => {
-    $(document).on("click", ".product-card", function (e) {
-      if (!$(e.target).closest(".heart-icon").length) {
-        const productURL = $(this).attr("data-url");
+    document.addEventListener("click", (e) => {
+      const productCard = e.target.closest(".product-card");
+      if (productCard && !e.target.closest(".heart-icon")) {
+        const productURL = productCard.getAttribute("data-url");
         if (productURL) {
           window.open(productURL, "_blank");
         }
       }
     });
 
-    $(document).on("click", ".heart-icon", function (event) {
-      event.stopPropagation();
+     document.addEventListener("click", (e) => {
+      const heartIcon = e.target.closest(".heart-icon");
+      if (heartIcon) {
+        e.stopPropagation();
   
-      const $heartIcon = $(this);
-      const productId = $heartIcon.closest(".product-card").data("id");
-      let favorites = JSON.parse(localStorage.getItem(favoriteKey)) || [];
+        const productId = heartIcon.closest(".product-card").getAttribute("data-id");
+        let favorites = JSON.parse(localStorage.getItem(favoriteKey)) || [];
   
-      if (favorites.includes(productId)) {
-        favorites = favorites.filter((id) => id !== productId);
-        $heartIcon.removeClass("favorite");
-      } else {
-        favorites.push(productId);
-        $heartIcon.addClass("favorite");
+        if (favorites.includes(productId)) {
+          favorites = favorites.filter((id) => id !== productId);
+          heartIcon.classList.remove("favorite");
+        } else {
+          favorites.push(productId);
+          heartIcon.classList.add("favorite");
+        }
+  
+        localStorage.setItem(favoriteKey, JSON.stringify(favorites));
+  
+        const isFavorite = favorites.includes(productId);
+        const svg = heartIcon.querySelector("svg");
+        svg.setAttribute("viewBox", isFavorite ? "0 0 20 18" : "0 0 48 48");
+        svg.querySelector("path").setAttribute("d", isFavorite ? 
+          "M17.947 2.053a5.209 5.209 0 0 0-3.793-1.53A6.414 6.414 0 0 0 10 2.311 6.482 6.482 0 0 0 5.824.5a5.2 5.2 0 0 0-3.8 1.521c-1.915 1.916-2.315 5.392.625 8.333l7 7a.5.5 0 0 0 .708 0l7-7a6.6 6.6 0 0 0 2.123-4.508 5.179 5.179 0 0 0-1.533-3.793Z" : 
+          "M34.6 6.1c5.7 0 10.4 5.2 10.4 11.5 0 6.8-5.9 11-11.5 16S25 41.3 24 41.9c-1.1-.7-4.7-4-9.5-8.3-5.7-5-11.5-9.2-11.5-16C3 11.3 7.7 6.1 13.4 6.1c4.2 0 6.5 2 8.1 4.3 1.9 2.6 2.2 3.9 2.5 3.9.3 0 .6-1.3 2.5-3.9 1.6-2.3 3.9-4.3 8.1-4.3m0-3c-4.5 0-7.9 1.8-10.6 5.6-2.7-3.7-6.1-5.5-10.6-5.5C6 3.1 0 9.6 0 17.6c0 7.3 5.4 12 10.6 16.5.6.5 1.3 1.1 1.9 1.7l2.3 2c4.4 3.9 6.6 5.9 7.6 6.5.5.3 1.1.5 1.6.5.6 0 1.1-.2 1.6-.5 1-.6 2.8-2.2 7.8-6.8l2-1.8c.7-.6 1.3-1.2 2-1.7C42.7 29.6 48 25 48 17.6c0-8-6-14.5-13.4-14.5z"
+        );
       }
-  
-      localStorage.setItem(favoriteKey, JSON.stringify(favorites));
-  
-
-      const isFavorite = favorites.includes(productId);
-      $heartIcon.find("svg").attr("viewBox", isFavorite ? "0 0 20 18" : "0 0 48 48");
-      $heartIcon.find("path").attr("d", isFavorite ? 
-        "M17.947 2.053a5.209 5.209 0 0 0-3.793-1.53A6.414 6.414 0 0 0 10 2.311 6.482 6.482 0 0 0 5.824.5a5.2 5.2 0 0 0-3.8 1.521c-1.915 1.916-2.315 5.392.625 8.333l7 7a.5.5 0 0 0 .708 0l7-7a6.6 6.6 0 0 0 2.123-4.508 5.179 5.179 0 0 0-1.533-3.793Z" : 
-        "M34.6 6.1c5.7 0 10.4 5.2 10.4 11.5 0 6.8-5.9 11-11.5 16S25 41.3 24 41.9c-1.1-.7-4.7-4-9.5-8.3-5.7-5-11.5-9.2-11.5-16C3 11.3 7.7 6.1 13.4 6.1c4.2 0 6.5 2 8.1 4.3 1.9 2.6 2.2 3.9 2.5 3.9.3 0 .6-1.3 2.5-3.9 1.6-2.3 3.9-4.3 8.1-4.3m0-3c-4.5 0-7.9 1.8-10.6 5.6-2.7-3.7-6.1-5.5-10.6-5.5C6 3.1 0 9.6 0 17.6c0 7.3 5.4 12 10.6 16.5.6.5 1.3 1.1 1.9 1.7l2.3 2c4.4 3.9 6.6 5.9 7.6 6.5.5.3 1.1.5 1.6.5.6 0 1.1-.2 1.6-.5 1-.6 2.8-2.2 7.8-6.8l2-1.8c.7-.6 1.3-1.2 2-1.7C42.7 29.6 48 25 48 17.6c0-8-6-14.5-13.4-14.5z"
-      );
     });
   };
 
